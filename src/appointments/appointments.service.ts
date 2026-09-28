@@ -528,15 +528,15 @@ export class AppointmentsService {
       );
     }
 
+    const asignacionActual =
+      await this.findCurrentAssignment(idPaciente);
+
     if (
-      user.rol !== ROL_ADMINISTRADOR &&
-      !(await this.isAssigned(
-        idPaciente,
-        dto.idPsicologo,
-      ))
+      asignacionActual &&
+      asignacionActual.id_psicologo !== dto.idPsicologo
     ) {
       throw new ForbiddenException(
-        'El paciente no está asignado a este psicólogo',
+        'El paciente ya tiene otro psicólogo asignado',
       );
     }
 
@@ -603,6 +603,24 @@ export class AppointmentsService {
             @creadaPor,
             @notasAgenda
           )
+          IF NOT EXISTS (
+            SELECT 1
+            FROM dbo.PacientePsicologo
+            WHERE id_paciente = @idPaciente
+            AND fecha_fin IS NULL
+          )
+          BEGIN
+          INSERT INTO dbo.PacientePsicologo (
+            id_paciente,
+            id_psicologo,
+            es_principal
+          )
+          VALUES (
+            @idPaciente,
+            @idPsicologo,
+            1
+          );
+          END;
         `);
 
       const idCita =
@@ -1147,5 +1165,28 @@ export class AppointmentsService {
         'No se pueden crear citas en el pasado',
       );
     }
+  }
+
+  private async findCurrentAssignment(
+    idPaciente: number,
+  ) {
+    const rows = await this.db.executeQuery(
+      `SELECT TOP (1)
+          id_asignacion,
+          id_psicologo
+      FROM dbo.PacientePsicologo
+      WHERE id_paciente = @idPaciente
+        AND es_principal = 1
+        AND fecha_fin IS NULL
+      ORDER BY fecha_inicio DESC`,
+      [
+        {
+          name: 'idPaciente',
+          value: idPaciente,
+        },
+      ],
+    );
+
+    return rows[0] ?? null;
   }
 }

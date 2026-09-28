@@ -132,6 +132,7 @@ export class UsersService {
             VALUES (@idPaciente, @numControl, @tipoPersona)
           `);
 
+        /*
         const psicologoDisponible = await transaction
           .request()
           .query(`
@@ -172,6 +173,7 @@ export class UsersService {
               )
             `);
         }
+        */
       } else if (dto.idRol === ROL_PSICOLOGO) {
         await transaction
           .request()
