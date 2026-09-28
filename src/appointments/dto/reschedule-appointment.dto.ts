@@ -16,7 +16,7 @@ export class RescheduleAppointmentDto {
     example: '2026-10-05T17:00:00.000Z',
     format: 'date-time',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   inicio: string;
 
   @ApiProperty({
@@ -25,7 +25,7 @@ export class RescheduleAppointmentDto {
     example: '2026-10-05T17:50:00.000Z',
     format: 'date-time',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   fin: string;
 
   @ApiPropertyOptional({

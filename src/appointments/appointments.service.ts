@@ -511,6 +511,12 @@ export class AppointmentsService {
       );
     }
 
+    if (!dto.inicio.endsWith('Z') || !dto.fin.endsWith('Z')) {
+      throw new BadRequestException(
+        'Las fechas deben enviarse en formato UTC terminado en Z',
+      );
+    }
+
     const inicio = new Date(dto.inicio);
     const fin = new Date(dto.fin);
 
@@ -739,6 +745,12 @@ export class AppointmentsService {
     if ([3, 4, 5, 6].includes(original.estado)) {
       throw new BadRequestException(
         'La cita ya no puede reprogramarse',
+      );
+    }
+
+    if (!dto.inicio.endsWith('Z') || !dto.fin.endsWith('Z')) {
+      throw new BadRequestException(
+        'Las fechas deben enviarse en formato UTC terminado en Z',
       );
     }
 

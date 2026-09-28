@@ -50,7 +50,7 @@ export class CreateAppointmentDto {
     example: '2026-10-01T18:00:00.000Z',
     format: 'date-time',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   inicio: string;
 
   @ApiProperty({
@@ -59,7 +59,7 @@ export class CreateAppointmentDto {
     example: '2026-10-01T18:50:00.000Z',
     format: 'date-time',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
   fin: string;
 
   @ApiProperty({
