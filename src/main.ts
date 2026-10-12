@@ -66,6 +66,12 @@ async function bootstrap() {
   const port =
     configService.get<number>('PORT', 3000);
 
+  app.enableCors({
+    origin: (process.env.FRONTEND_URL ?? 'http://localhost:8081').split(','),
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
   await app.listen(port);
 }
 

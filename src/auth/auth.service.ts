@@ -57,7 +57,7 @@ export class AuthService {
       return {
         success: false,
         statusCode: 401,
-        message: 'Credenciales inválidas',
+        message: 'La contraseña o el correo no son correctos, intente de nuevo.',
         error: 'INVALID_CREDENTIALS',
         data: null,
       };
