@@ -235,6 +235,25 @@ export class AppointmentsController {
       );
   }
 
+  @ApiOperation({
+    summary:
+      'Consultar los intervalos ocupados de un psicólogo (sin datos de pacientes).',
+  })
+  @Get('availability/psychologist/:psychologistId')
+  findBusySlots(
+    @Param('psychologistId', ParseIntPipe)
+    psychologistId: number,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+  ) {
+    return this.appointmentsService.findBusySlots(
+      psychologistId,
+      from,
+      to,
+    );
+  }
+
+
   @ApiOperation({ summary: 'Consultar cita por ID.' })
   @Get(':appointmentId')
   findOne(

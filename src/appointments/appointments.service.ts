@@ -487,6 +487,50 @@ export class AppointmentsService {
     );
   }
 
+  
+  /**
+   * Intervalos ocupados (citas solicitadas o confirmadas) de un psicólogo.
+   * Solo devuelve inicio y fin: no expone pacientes ni detalles de la cita,
+   * por lo que puede consultarlo cualquier usuario autenticado para elegir horario.
+   */
+  async findBusySlots(
+    idPsicologo: number,
+    desde?: string,
+    hasta?: string,
+  ) {
+    await this.ensurePsychologistExists(idPsicologo);
+
+    const from = desde ? new Date(desde) : null;
+    const to = hasta ? new Date(hasta) : null;
+
+    if (
+      (from && Number.isNaN(from.getTime())) ||
+      (to && Number.isNaN(to.getTime()))
+    ) {
+      throw new BadRequestException(
+        'Las fechas no son válidas',
+      );
+    }
+
+    return this.db.executeQuery(
+      `SELECT
+          inicio,
+          fin
+       FROM dbo.Citas
+       WHERE id_psicologo = @idPsicologo
+         AND estado IN (1, 2)
+         AND (@hasta IS NULL OR inicio < @hasta)
+         AND (@desde IS NULL OR fin > @desde)
+       ORDER BY inicio`,
+      [
+        { name: 'idPsicologo', value: idPsicologo },
+        { name: 'desde', value: from },
+        { name: 'hasta', value: to },
+      ],
+    );
+  }
+
+
   async createAppointment(
     dto: CreateAppointmentDto,
     user: AuthenticatedUser,
