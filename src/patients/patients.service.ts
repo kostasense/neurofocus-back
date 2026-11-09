@@ -149,21 +149,21 @@ export class PatientsService {
          fecha_nacimiento =
            CASE
              WHEN @actualizarFecha = 1
-               THEN @fechaNacimiento
+               THEN CAST(@fechaNacimiento AS DATE)
              ELSE fecha_nacimiento
            END,
 
          telefono_cifrado =
            CASE
              WHEN @actualizarTelefono = 1
-               THEN @telefonoCifrado
+               THEN CAST(@telefonoCifrado AS VARBINARY(MAX))
              ELSE telefono_cifrado
            END,
 
          telefono_confianza_cifrado =
            CASE
              WHEN @actualizarTelefonoConfianza = 1
-               THEN @telefonoConfianzaCifrado
+               THEN CAST(@telefonoConfianzaCifrado AS VARBINARY(MAX))
              ELSE telefono_confianza_cifrado
            END,
 
