@@ -241,6 +241,25 @@ export class EvaluationsController {
     );
   }
 
+  @ApiOperation({
+    summary:
+      'Consultar las aplicaciones de una evaluación con sus respuestas',
+  })
+  @Roles(ROL_PSICOLOGO, ROL_ADMINISTRADOR)
+  @Get(':id/applications')
+  findApplications(
+    @Param('id', ParseIntPipe)
+    idEvaluacion: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.evaluationsService
+      .findApplicationsByEvaluation(
+        idEvaluacion,
+        req.user,
+      );
+  }
+
+
   /*
    * Esta ruta genérica debe permanecer al final para evitar
    * conflictos con /patient, /psychologist y /applications.

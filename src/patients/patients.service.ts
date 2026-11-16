@@ -25,6 +25,27 @@ export class PatientsService {
     return Boolean(rows[0]);
   }
 
+  /** Indica si el psicólogo tiene una asignación vigente con el paciente. */
+  async isAssignedPsychologist(
+    idPaciente: number,
+    idPsicologo: number,
+  ): Promise<boolean> {
+    const rows = await this.db.executeQuery(
+      `SELECT TOP (1) id_asignacion
+       FROM dbo.PacientePsicologo
+       WHERE id_paciente = @idPaciente
+         AND id_psicologo = @idPsicologo
+         AND fecha_fin IS NULL`,
+      [
+        { name: 'idPaciente', value: idPaciente },
+        { name: 'idPsicologo', value: idPsicologo },
+      ],
+    );
+
+    return Boolean(rows[0]);
+  }
+
+
   async findById(idPaciente: number) {
     const rows = await this.db.executeQuery(
       `SELECT

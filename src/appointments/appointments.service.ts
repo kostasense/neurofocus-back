@@ -334,6 +334,36 @@ export class AppointmentsService {
     return this.findScheduleById(idHorario);
   }
 
+  async deleteSchedule(
+    idHorario: number,
+    user: AuthenticatedUser,
+  ) {
+    const schedule =
+      await this.findScheduleById(idHorario);
+
+    this.ensurePsychologistOwnerOrAdmin(
+      schedule.id_psicologo,
+      user,
+    );
+
+    await this.db.executeQuery(
+      `DELETE FROM dbo.HorarioPsicologo
+       WHERE id_horario = @idHorario`,
+      [
+        {
+          name: 'idHorario',
+          value: idHorario,
+        },
+      ],
+    );
+
+    return {
+      eliminado: true,
+      id_horario: idHorario,
+    };
+  }
+
+
   /* =========================
      CITAS
      ========================= */

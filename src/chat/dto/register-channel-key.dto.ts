@@ -4,6 +4,7 @@ import {
 import {
   IsBase64,
   IsInt,
+  IsOptional,
   Min,
 } from 'class-validator';
 
@@ -25,4 +26,15 @@ export class RegisterChannelKeyDto {
   @IsInt()
   @Min(1)
   versionClave: number;
+
+  @ApiProperty({
+    description:
+      'Participante dueño del sobre. Si se omite es el usuario autenticado; permite entregar la clave al otro participante',
+    required: false,
+    example: 10,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idUsuario?: number;
 }

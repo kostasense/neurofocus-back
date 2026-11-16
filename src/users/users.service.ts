@@ -194,8 +194,40 @@ export class UsersService {
     }
   }
 
-  async update(idUsuario: number, dto: UpdateUserDto) {
-    await this.findPublicById(idUsuario); // lanza NotFoundException si no existe
+  async update(
+    idUsuario: number,
+    dto: UpdateUserDto,
+    idActor?: number,
+  ) {
+    const actual = await this.findPublicById(idUsuario); // lanza NotFoundException si no existe
+
+    // Si el propio usuario cambia su correo, debe confirmar su contraseña.
+    // La administración que edita cuentas ajenas no la necesita.
+    const cambiaCorreo =
+      dto.correo !== undefined &&
+      dto.correo.toLowerCase() !== String(actual.correo).toLowerCase();
+
+    if (cambiaCorreo && idActor === idUsuario) {
+      if (!dto.contrasenaActual) {
+        throw new BadRequestException(
+          'Para cambiar el correo debes confirmar tu contraseña actual',
+        );
+      }
+
+      const cuenta = await this.findById(idUsuario);
+      const coincide =
+        cuenta &&
+        (await bcrypt.compare(
+          dto.contrasenaActual,
+          cuenta.password_hash,
+        ));
+
+      if (!coincide) {
+        throw new BadRequestException(
+          'La contraseña actual es incorrecta',
+        );
+      }
+    }
 
     if (dto.correo) {
       const existente = await this.findByEmail(dto.correo);

@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   Request,
   UseGuards,
@@ -25,6 +26,7 @@ import { RegisterChannelKeyDto } from './dto/register-channel-key.dto.js';
 import { SendEncryptedMessageDto } from './dto/send-encrypted-message.dto.js';
 import { CreatePanicAlertDto } from './dto/create-panic-alert.dto.js';
 import { UpdatePanicStatusDto } from './dto/update-panic-status.dto.js';
+import { PublishIdentityDto } from './dto/publish-identity.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -150,6 +152,82 @@ export class ChatController {
     return this.chatService.registerKeyEnvelope(
       channelId,
       dto,
+      req.user,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Listar todos los sobres de clave del usuario en el canal',
+  })
+  @Roles(
+    ROL_PACIENTE,
+    ROL_PSICOLOGO,
+  )
+  @Get('channels/:channelId/keys')
+  listMyKeys(
+    @Param('channelId', ParseIntPipe)
+    channelId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.chatService.listMyKeyEnvelopes(
+      channelId,
+      req.user,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Publicar o reemplazar la identidad de cifrado del usuario',
+  })
+  @Roles(
+    ROL_PACIENTE,
+    ROL_PSICOLOGO,
+  )
+  @Put('identity')
+  saveIdentity(
+    @Body() dto: PublishIdentityDto,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.chatService.saveIdentity(
+      dto,
+      req.user,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Consultar mi identidad de cifrado (clave pública y respaldo)',
+  })
+  @Roles(
+    ROL_PACIENTE,
+    ROL_PSICOLOGO,
+  )
+  @Get('identity/me')
+  getMyIdentity(
+    @Request() req: RequestWithUser,
+  ) {
+    return this.chatService.getMyIdentity(
+      req.user,
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Consultar la clave pública del otro participante del canal',
+  })
+  @Roles(
+    ROL_PACIENTE,
+    ROL_PSICOLOGO,
+  )
+  @Get('channels/:channelId/peer-identity')
+  getPeerIdentity(
+    @Param('channelId', ParseIntPipe)
+    channelId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.chatService.getPeerIdentity(
+      channelId,
       req.user,
     );
   }

@@ -133,6 +133,16 @@ export class PsychologistsController {
       );
     }
 
+    // La cédula profesional la gestiona únicamente la administración.
+    if (
+      !esAdministrador &&
+      dto.cedulaProfesional !== undefined
+    ) {
+      throw new ForbiddenException(
+        'La cédula profesional solo puede modificarla la administración',
+      );
+    }
+
     return this.psychologistsService.update(
       id,
       dto,

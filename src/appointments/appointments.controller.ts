@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
@@ -111,6 +112,22 @@ export class AppointmentsController {
         scheduleId,
         req.user,
       );
+  }
+
+  @ApiOperation({
+    summary: 'Eliminar definitivamente un bloque semanal.',
+  })
+  @Roles(ROL_PSICOLOGO, ROL_ADMINISTRADOR)
+  @Delete('schedules/:scheduleId')
+  deleteSchedule(
+    @Param('scheduleId', ParseIntPipe)
+    scheduleId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.appointmentsService.deleteSchedule(
+      scheduleId,
+      req.user,
+    );
   }
 
   /* Citas */

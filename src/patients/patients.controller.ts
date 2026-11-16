@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
+const ROL_PSICOLOGO = 2;
 const ROL_ADMINISTRADOR = 3;
 
 interface RequestWithUser extends ExpressRequest {
@@ -54,7 +55,7 @@ export class PatientsController {
     summary: 'Consultar el perfil de un paciente',
   })
   @Get(':id')
-  findOne(
+  async findOne(
     @Param('id', ParseIntPipe)
     id: number,
     @Request() req: RequestWithUser,
@@ -62,8 +63,16 @@ export class PatientsController {
     const esAdministrador =
       req.user.rol === ROL_ADMINISTRADOR;
 
+    const esPsicologoAsignado =
+      req.user.rol === ROL_PSICOLOGO &&
+      (await this.patientsService.isAssignedPsychologist(
+        id,
+        req.user.userId,
+      ));
+
     if (
       !esAdministrador &&
+      !esPsicologoAsignado &&
       req.user.userId !== id
     ) {
       throw new ForbiddenException(

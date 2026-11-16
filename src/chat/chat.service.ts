@@ -11,6 +11,7 @@ import { RegisterChannelKeyDto } from './dto/register-channel-key.dto.js';
 import { SendEncryptedMessageDto } from './dto/send-encrypted-message.dto.js';
 import { CreatePanicAlertDto } from './dto/create-panic-alert.dto.js';
 import { UpdatePanicStatusDto } from './dto/update-panic-status.dto.js';
+import { PublishIdentityDto } from './dto/publish-identity.dto.js';
 
 const ROL_PACIENTE = 1;
 const ROL_PSICOLOGO = 2;
@@ -139,6 +140,14 @@ export class ChatService {
     const channel = await this.getChannelRaw(idCanal);
     this.ensureParticipant(channel, user);
 
+    const idDestino = dto.idUsuario ?? user.userId;
+    if (
+      idDestino !== channel.id_paciente &&
+      idDestino !== channel.id_psicologo
+    ) {
+      throw new BadRequestException('El destinatario no pertenece al canal');
+    }
+
     const envelope = Buffer.from(dto.sobreClaveCifrado, 'base64');
     if (!envelope.length || envelope.length > 8000) {
       throw new BadRequestException('El sobre de clave no es válido');
@@ -152,7 +161,7 @@ export class ChatService {
          AND version_clave = @versionClave`,
       [
         { name: 'idCanal', value: idCanal },
-        { name: 'idUsuario', value: user.userId },
+        { name: 'idUsuario', value: idDestino },
         { name: 'versionClave', value: dto.versionClave },
       ],
     );
@@ -169,13 +178,131 @@ export class ChatService {
        )`,
       [
         { name: 'idCanal', value: idCanal },
-        { name: 'idUsuario', value: user.userId },
+        { name: 'idUsuario', value: idDestino },
         { name: 'sobreClave', value: envelope },
         { name: 'versionClave', value: dto.versionClave },
       ],
     );
 
-    return { idCanal, versionClave: dto.versionClave, registrada: true };
+    return {
+      idCanal,
+      idUsuario: idDestino,
+      versionClave: dto.versionClave,
+      registrada: true,
+    };
+  }
+
+  /**
+   * Todos los sobres del usuario en el canal. `completa` indica que ambos
+   * participantes ya tienen sobre de esa versión (solo entonces se puede enviar).
+   */
+  async listMyKeyEnvelopes(idCanal: number, user: AuthenticatedUser) {
+    const channel = await this.getChannelRaw(idCanal);
+    this.ensureParticipant(channel, user);
+
+    const rows = await this.db.executeQuery(
+      `SELECT k.version_clave, k.sobre_clave_cifrado, k.fecha_creacion,
+              (SELECT COUNT(*)
+               FROM dbo.ClavesCanalParticipante x
+               WHERE x.id_canal = k.id_canal
+                 AND x.version_clave = k.version_clave
+                 AND x.id_usuario IN (@idPaciente, @idPsicologo)) AS total
+       FROM dbo.ClavesCanalParticipante k
+       WHERE k.id_canal = @idCanal
+         AND k.id_usuario = @idUsuario
+       ORDER BY k.version_clave ASC`,
+      [
+        { name: 'idCanal', value: idCanal },
+        { name: 'idUsuario', value: user.userId },
+        { name: 'idPaciente', value: channel.id_paciente },
+        { name: 'idPsicologo', value: channel.id_psicologo },
+      ],
+    );
+
+    return rows.map((r) => ({
+      versionClave: r.version_clave,
+      sobreClaveCifrado: Buffer.from(r.sobre_clave_cifrado).toString('base64'),
+      fechaCreacion: r.fecha_creacion,
+      completa: Number(r.total) === 2,
+    }));
+  }
+
+  /** Publica o reemplaza la identidad de cifrado (clave pública  respaldo) del usuario. */
+  async saveIdentity(dto: PublishIdentityDto, user: AuthenticatedUser) {
+    const publicKey = Buffer.from(dto.clavePublica, 'base64');
+    const backup = Buffer.from(dto.respaldoClavePrivada, 'base64');
+    if (publicKey.length !== 32) {
+      throw new BadRequestException('La clave pública no es válida');
+    }
+    if (!backup.length || backup.length > 512) {
+      throw new BadRequestException('El respaldo de clave no es válido');
+    }
+
+    await this.db.executeQuery(
+      `MERGE dbo.ClavesIdentidadChat AS t
+       USING (SELECT @idUsuario AS id_usuario) AS s
+         ON t.id_usuario = s.id_usuario
+       WHEN MATCHED THEN
+         UPDATE SET clave_publica = @clavePublica,
+                    respaldo_clave_privada = @respaldo,
+                    fecha_actualizacion = SYSUTCDATETIME()
+       WHEN NOT MATCHED THEN
+         INSERT (id_usuario, clave_publica, respaldo_clave_privada)
+         VALUES (@idUsuario, @clavePublica, @respaldo);`,
+      [
+        { name: 'idUsuario', value: user.userId },
+        { name: 'clavePublica', value: publicKey },
+        { name: 'respaldo', value: backup },
+      ],
+    );
+
+    return { registrada: true };
+  }
+
+  async getMyIdentity(user: AuthenticatedUser) {
+    const rows = await this.db.executeQuery(
+      `SELECT clave_publica, respaldo_clave_privada, fecha_actualizacion
+       FROM dbo.ClavesIdentidadChat
+       WHERE id_usuario = @idUsuario`,
+      [{ name: 'idUsuario', value: user.userId }],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException('Aún no activas el cifrado del chat');
+    }
+    return {
+      clavePublica: Buffer.from(rows[0].clave_publica).toString('base64'),
+      respaldoClavePrivada: Buffer.from(
+        rows[0].respaldo_clave_privada,
+      ).toString('base64'),
+      fechaActualizacion: rows[0].fecha_actualizacion,
+    };
+  }
+
+  /** Clave pública del otro participante del canal (nunca su respaldo). */
+  async getPeerIdentity(idCanal: number, user: AuthenticatedUser) {
+    const channel = await this.getChannelRaw(idCanal);
+    this.ensureParticipant(channel, user);
+
+    const idPar =
+      user.userId === channel.id_paciente
+        ? channel.id_psicologo
+        : channel.id_paciente;
+
+    const rows = await this.db.executeQuery(
+      `SELECT clave_publica
+       FROM dbo.ClavesIdentidadChat
+       WHERE id_usuario = @idPar`,
+      [{ name: 'idPar', value: idPar }],
+    );
+    if (!rows[0]) {
+      throw new NotFoundException(
+        'La otra persona aún no activa el cifrado del chat',
+      );
+    }
+    return {
+      idUsuario: idPar,
+      clavePublica: Buffer.from(rows[0].clave_publica).toString('base64'),
+    };
   }
 
   async getMyKeyEnvelope(

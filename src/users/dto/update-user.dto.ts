@@ -31,4 +31,14 @@ export class UpdateUserDto {
   @IsNotEmpty()
   @MaxLength(100)
   nombre?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Contraseña actual. Es obligatoria cuando el propio usuario cambia su correo.',
+    maxLength: 128,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  contrasenaActual?: string;
 }

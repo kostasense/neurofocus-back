@@ -383,6 +383,83 @@ export class EvaluationsService {
     };
   }
 
+    /**
+   * Aplicaciones de una evaluación con sus respuestas por reactivo, para que el
+   * psicólogo asignado (o un administrador) revise el detalle de cada instrumento.
+   */
+  async findApplicationsByEvaluation(
+    idEvaluacion: number,
+    user: AuthenticatedUser,
+  ) {
+    const evaluation = await this.getEvaluationRaw(
+      idEvaluacion,
+    );
+
+    await this.ensureEvaluationAccess(
+      evaluation.id_paciente,
+      user,
+    );
+
+    const applications = await this.db.executeQuery(
+      `SELECT
+          ai.id_aplicacion,
+          ai.id_evaluacion,
+          ai.id_instrumento,
+          i.codigo,
+          ai.estado,
+          ai.fecha_inicio,
+          ai.fecha_fin,
+          ai.puntaje_total,
+          ai.nivel,
+          ai.dificultad_funcional,
+          ai.alerta_prioritaria
+       FROM dbo.AplicacionesInstrumento ai
+       INNER JOIN dbo.Instrumentos i
+         ON i.id_instrumento = ai.id_instrumento
+       WHERE ai.id_evaluacion = @idEvaluacion
+       ORDER BY ai.id_instrumento, ai.id_aplicacion`,
+      [
+        {
+          name: 'idEvaluacion',
+          value: idEvaluacion,
+        },
+      ],
+    );
+
+    const answers = await this.db.executeQuery(
+      `SELECT
+          r.id_aplicacion,
+          r.numero_reactivo,
+          r.valor
+       FROM dbo.RespuestasInstrumento r
+       INNER JOIN dbo.AplicacionesInstrumento ai
+         ON ai.id_aplicacion = r.id_aplicacion
+       WHERE ai.id_evaluacion = @idEvaluacion
+       ORDER BY r.id_aplicacion, r.numero_reactivo`,
+      [
+        {
+          name: 'idEvaluacion',
+          value: idEvaluacion,
+        },
+      ],
+    );
+
+    return applications.map((application: any) => ({
+      ...application,
+      respuestas: answers
+        .filter(
+          (a: any) =>
+            String(a.id_aplicacion) ===
+            String(application.id_aplicacion),
+        )
+        .map((a: any) => ({
+          numero_reactivo: a.numero_reactivo,
+          valor: a.valor,
+        })),
+    }));
+  }
+
+
   async submitInstrument(
     idAplicacion: number,
     dto: SubmitInstrumentDto,
