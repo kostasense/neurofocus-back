@@ -76,7 +76,13 @@ export class ChatService {
     }
 
     return this.db.executeQuery(
-      `SELECT c.*, paciente.nombre AS paciente, psicologo.nombre AS psicologo
+      `SELECT c.*, paciente.nombre AS paciente, psicologo.nombre AS psicologo,
+              (SELECT COUNT(*)
+               FROM dbo.MensajesChat m
+               WHERE m.id_canal = c.id_canal
+                 AND m.id_emisor <> @idUsuario
+                 AND m.eliminado_receptor = 0
+                 AND m.leido IS NULL) AS no_leidos
        FROM dbo.CanalesChat c
        INNER JOIN dbo.Usuarios paciente ON paciente.id_usuario = c.id_paciente
        INNER JOIN dbo.Usuarios psicologo ON psicologo.id_usuario = c.id_psicologo
