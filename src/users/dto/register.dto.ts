@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Equals } from 'class-validator';
 import {
   IsEmail,
   IsIn,
@@ -9,7 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-/** L + 8 dígitos (los dígitos 3 y 4 son 17, plantel Culiacán) en el dominio institucional. */
+/** L  8 dígitos (los dígitos 3 y 4 son 17, plantel Culiacán) en el dominio institucional. */
 export const CORREO_INSTITUCIONAL = /^[lL]\d{2}17\d{4}@culiacan\.tecnm\.mx$/i;
 
 export class RegisterDto {
@@ -67,4 +68,29 @@ export class RegisterDto {
   })
   @IsIn(['A', 'D', 'PA'])
   tipoPersona: 'A' | 'D' | 'PA';
+
+  @ApiProperty({
+    description: 'Aceptación del consentimiento informado (debe ser true)',
+    example: true,
+  })
+  @Equals(true, { message: 'Debes aceptar el consentimiento informado' })
+  aceptaConsentimiento: boolean;
+
+  @ApiProperty({
+    description: 'Aceptación del aviso de privacidad (debe ser true)',
+    example: true,
+  })
+  @Equals(true, { message: 'Debes aceptar el aviso de privacidad' })
+  aceptaAviso: boolean;
+
+  @ApiProperty({
+    description:
+      'Versión de los textos legales que la persona leyó y aceptó (debe coincidir con la vigente)',
+    example: '1.0',
+    maxLength: 20,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  versionTextos: string;
 }

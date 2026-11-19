@@ -10,6 +10,7 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { VERSION_TEXTOS_LEGALES } from './legal.constants.js';
 
 const ROL_PACIENTE = 1;
 const ROL_PSICOLOGO = 2;
@@ -74,21 +75,30 @@ export class UsersService {
   }
 
   async register(dto: RegisterDto) {
-    return this.create({
-      correo: dto.correo,
-      contrasena: dto.contrasena,
-      nombre: dto.nombre,
-      idRol: ROL_PACIENTE,
-      numControlOEmpleado: dto.numControlOEmpleado,
-      tipoPersona: dto.tipoPersona,
-    });
+    // La versión debe ser la vigente: garantiza que la persona vio los textos actuales.
+    if (dto.versionTextos !== VERSION_TEXTOS_LEGALES) {
+      throw new BadRequestException(
+        'Los textos legales cambiaron. Recarga la pantalla y vuelve a aceptarlos.',
+      );
+    }
+    return this.create(
+      {
+        correo: dto.correo,
+        contrasena: dto.contrasena,
+        nombre: dto.nombre,
+        idRol: ROL_PACIENTE,
+        numControlOEmpleado: dto.numControlOEmpleado,
+        tipoPersona: dto.tipoPersona,
+      },
+      VERSION_TEXTOS_LEGALES,
+    );
   }
 
   /**
    * Crea el usuario y, según el rol, su fila complementaria en
    * Pacientes o Psicologos, dentro de una sola transacción.
    */
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, versionTextos?: string) {
     const existente = await this.findByEmail(dto.correo);
     if (existente) {
       throw new ConflictException('Ya existe un usuario con ese correo');
@@ -131,6 +141,18 @@ export class UsersService {
             INSERT INTO dbo.Pacientes (id_paciente, num_control_o_num_empleado, tipo_persona)
             VALUES (@idPaciente, @numControl, @tipoPersona)
           `);
+
+        // Evidencia de aceptación (consentimiento  aviso) en la misma transacción.
+        if (versionTextos) {
+          await transaction
+            .request()
+            .input('idUsuario', idUsuario)
+            .input('version', versionTextos)
+            .query(`
+              INSERT INTO dbo.AceptacionesLegales (id_usuario, version_textos)
+              VALUES (@idUsuario, @version)
+            `);
+        }
 
         /*
         const psicologoDisponible = await transaction
